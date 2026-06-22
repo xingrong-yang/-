@@ -1,6 +1,6 @@
 ﻿const fs = require('fs'); const path = require('path'); const crypto = require('crypto');
 const REPO_ROOT = process.cwd(); const WEBHOOK = process.env.FEISHU_WEBHOOK;
-const START_DATE = new Date('2026-06-24T00:00:00+08:00'); const SLOTS = [8, 13];
+const START_DATE = new Date('2026-06-22T00:00:00+08:00'); const SLOTS = [8, 13];
 if (!WEBHOOK) { console.error('Missing FEISHU_WEBHOOK env'); process.exit(1); }
 function stripMd(t) {
   return t.replace(/^---[\s\S]*?^---\s*/m,'').replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]*)\]\(.*?\)/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/`{1,3}[^`]+`{1,3}/g,'').replace(/#{1,6}\s+/g,'').replace(/>\s*/g,'').replace(/[-*+]\s+/g,'').replace(/\d+\.\s+/g,'').replace(/\|.*\|/g,'').replace(/\n{3,}/g,'\n\n').trim();
@@ -40,7 +40,7 @@ async function sendFeishu(title, content) {
   if (segs.length === 0) { console.log('无内容'); process.exit(0); }
   const slot = getTodaySlot(); console.log('时槽索引: ' + slot);
   if (slot < 0) { console.log('未到开始日期'); process.exit(0); }
-  const forceSlot = process.env.FORCE_SLOT; const finalSlot = forceSlot ? parseInt(forceSlot) : slot;
+  const forceSlot = process.env.FORCE_SLOT; const finalSlot = forceSlot ? parseInt(forceSlot) : slot + 2;
   if (finalSlot >= segs.length) { console.log('所有内容已推送完毕'); process.exit(0); }
   const seg = segs[finalSlot]; console.log('推送: [' + seg.title + '] ' + seg.charCount + '字');
   const ok = await sendFeishu(seg.title, seg.content);
