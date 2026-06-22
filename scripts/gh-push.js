@@ -1,6 +1,6 @@
 ﻿const fs = require('fs'); const path = require('path'); const crypto = require('crypto');
 const REPO_ROOT = process.cwd(); const WEBHOOK = process.env.FEISHU_WEBHOOK;
-const START_DATE = new Date('2026-06-22T00:00:00+08:00'); const SLOTS = [8, 13];
+const START_DATE = new Date('2026-06-24T00:00:00+08:00'); const SLOTS = [8, 13];
 if (!WEBHOOK) { console.error('Missing FEISHU_WEBHOOK env'); process.exit(1); }
 function stripMd(t) {
   return t.replace(/^---[\s\S]*?^---\s*/m,'').replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]*)\]\(.*?\)/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/`{1,3}[^`]+`{1,3}/g,'').replace(/#{1,6}\s+/g,'').replace(/>\s*/g,'').replace(/[-*+]\s+/g,'').replace(/\d+\.\s+/g,'').replace(/\|.*\|/g,'').replace(/\n{3,}/g,'\n\n').trim();
