@@ -1,0 +1,21 @@
+name: \u5b66\u4e60\u63a8\u9001
+on:
+  schedule:
+    - cron: '0 0 * * *'
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      forceSlot:
+        description: '\u5f3a\u5236\u63a8\u9001\u6307\u5b9a\u65f6\u69fd\u7d22\u5f15 (0-\u5f00\u59cb)'
+        required: false
+        type: number
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: \u63a8\u9001\u5b66\u4e60\u5185\u5bb9
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+          FORCE_SLOT: ${{ inputs.forceSlot || '' }}
+        run: node scripts/gh-push.js

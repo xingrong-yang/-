@@ -1,0 +1,16 @@
+node_modules/
+.pnpm-store/
+learning-push-backend/data/
+learning-push-backend/start.ps1
+learning-push-backend/server.log
+learning-push-backend/public/
+learning-push-app/node_modules/
+learning-push-app/.expo/
+学习笔记/learning-push-backend/data/
+学习笔记/learning-push-backend/public/
+学习笔记/css/
+学习笔记/js/
+学习笔记/data/
+*.pyc
+.DS_Store
+Thumbs.db
