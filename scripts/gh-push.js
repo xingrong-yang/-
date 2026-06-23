@@ -1,49 +1,41 @@
-﻿const fs = require('fs'); const path = require('path'); const crypto = require('crypto');
-const REPO_ROOT = process.cwd(); const WEBHOOK = process.env.FEISHU_WEBHOOK;
-const START_DATE = new Date('2026-06-22T00:00:00+08:00'); const SLOTS = [8, 13];
-if (!WEBHOOK) { console.error('Missing FEISHU_WEBHOOK env'); process.exit(1); }
-function stripMd(t) {
-  return t.replace(/^---[\s\S]*?^---\s*/m,'').replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]*)\]\(.*?\)/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/`{1,3}[^`]+`{1,3}/g,'').replace(/#{1,6}\s+/g,'').replace(/>\s*/g,'').replace(/[-*+]\s+/g,'').replace(/\d+\.\s+/g,'').replace(/\|.*\|/g,'').replace(/\n{3,}/g,'\n\n').trim();
-}
-function parse(md, fn) {
-  const plain = stripMd(md); const lines = plain.split('\n'); const paras = []; let cur = ''; let curTitle = fn; const segs = [];
-  for (const line of lines) { const t = line.trim(); if (!t) continue; const isTitle = t.length < 30 && !t.endsWith('\u3002') && !t.endsWith('\uff1f') && !t.endsWith('\uff01');
-    if (isTitle) { if (!cur.trim()) { curTitle = t; continue; } if (cur.trim().length >= 300) { segs.push({ title: curTitle, content: cur.trim() }); cur = ''; } curTitle = t; continue; }
-    const wb = cur ? cur + '\n\n' + t : t; if (wb.length <= 800) { cur = wb; } else { if (cur.trim().length >= 300) segs.push({ title: curTitle, content: cur.trim() }); cur = t; } }
-  if (cur.trim().length >= 200) segs.push({ title: curTitle, content: cur.trim() });
-  return segs.map((s, i) => ({ seq: i + 1, title: s.title || fn, content: s.content, charCount: s.content.length }));
-}
-function walkDir(dir, files) {
-  if (!files) files = []; const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const e of entries) { if (e.isDirectory()) { if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'learning-push-backend' || e.name === '.pnpm-store') continue; walkDir(path.join(dir, e.name), files); } else if (e.name.endsWith('.md')) { files.push(path.join(dir, e.name)); } }
-  return files;
-}
-function buildSegments() {
-  const files = walkDir(REPO_ROOT); const allSegs = [];
-  for (const fp of files) { const stat = fs.statSync(fp); const content = fs.readFileSync(fp, 'utf-8'); const segs = parse(content, path.basename(fp, '.md')); segs.forEach(s => { s.fileMtime = stat.mtimeMs; }); allSegs.push(...segs); }
-  allSegs.sort((a, b) => { if (a.fileMtime !== b.fileMtime) return a.fileMtime - b.fileMtime; return a.seq - b.seq; });
-  return allSegs;
-}
-function getTodaySlot() {
-  const now = new Date(); const h = now.getHours() + now.getTimezoneOffset() / 60 + 8; const cst = new Date(now); cst.setHours(h, 0, 0, 0);
-  const start = new Date(START_DATE);
-  const dayDiff = Math.floor((cst.getTime() - start.getTime()) / 86400000);
-  if (dayDiff < 0) return -1;
-  const isAfternoon = h >= 11; return dayDiff * 2 + (isAfternoon ? 1 : 0);
-}
-async function sendFeishu(title, content) {
-  const body = JSON.stringify({ msg_type: 'interactive', card: { header: { title: { tag: 'plain_text', content: title || 'ѧϰ����' }, template: 'blue' }, elements: [{ tag: 'markdown', content: content }, { tag: 'hr' }, { tag: 'note', elements: [{ tag: 'plain_text', content: '���Ը��˳ɳ�ѧϰ����ϵͳ' }] }] } });
-  const r = await fetch(WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body }); const j = await r.json(); return j.code === 0;
-}
-(async () => {
-  const segs = buildSegments(); console.log('�������: ' + segs.length + ' ������');
-  if (segs.length === 0) { console.log('������'); process.exit(0); }
-  const slot = getTodaySlot(); console.log('ʱ������: ' + slot);
-  if (slot < 0) { console.log('δ����ʼ����'); process.exit(0); }
-  const forceSlot = process.env.FORCE_SLOT; const finalSlot = forceSlot ? parseInt(forceSlot) : slot;
-  if (finalSlot >= segs.length) { console.log('�����������������'); process.exit(0); }
-  const seg = segs[finalSlot]; console.log('����: [' + seg.title + '] ' + seg.charCount + '��');
-  const ok = await sendFeishu(seg.title, seg.content);
-  console.log(ok ? '���ͳɹ�' : '����ʧ��');
-  process.exit(ok ? 0 : 1);
-})();
+const fs=require('fs'),path=require('path'),crypto=require('crypto');
+const ROOT=process.cwd(),WH=process.env.FEISHU_WEBHOOK;
+const START=new Date('2026-06-22T00:00:00+08:00'),HOURS=[8,13];
+if(!WH){console.error('Missing FEISHU_WEBHOOK');process.exit(1);}
+function strip(t){return t.replace(/^---[\s\S]*?^---\s*/m,'').replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[([^\]]*)\]\(.*?\)/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/`{1,3}[^`]+`{1,3}/g,'').replace(/^(#{1}|#{3,})\s+/gm,'').replace(/>\s*/g,'').replace(/[-*+]\s+/g,'').replace(/\d+\.\s+/g,'').replace(/\|.*\|/g,'').replace(/\n{3,}/g,'\n\n').trim();}
+function parse(md,fn){
+  md=md.replace(/^---[\s\S]*?^---\s*/m,'');
+  const raws=md.split(/\n(?=## )/),segs=[];let seq=0;
+  for(const raw of raws){
+    const s=raw.trim();if(!s)continue;
+    const ln=s.split('\n')[0].trim(),isH=ln.startsWith('## ');
+    const title=isH?ln.replace(/^##\s+/,'').replace(/第\d+天[·.][^·]*[·.]/g,'').trim():fn;
+    const body=strip((isH?s.split('\n').slice(1):s.split('\n')).join('\n'));
+    if(!body.trim())continue;
+    segs.push({seq:++seq,title:title||fn,content:body.trim(),charCount:body.trim().length});}
+  if(!segs.length){const p=strip(md);if(p.trim())segs.push({seq:1,title:fn,content:p.trim(),charCount:p.trim().length});}
+  return segs;}
+function walk(d,f){if(!f)f=[];for(const e of fs.readdirSync(d,{withFileTypes:true})){if(e.isDirectory()){if(e.name.startsWith('.')||e.name=='node_modules'||e.name=='learning-push-backend'||e.name=='.pnpm-store')continue;walk(path.join(d,e.name),f);}else if(e.name.endsWith('.md'))f.push(path.join(d,e.name));}return f;}
+function build(){
+  const fs2=walk(ROOT),all=[];
+  for(const fp of fs2){const st=fs.statSync(fp),c=fs.readFileSync(fp,'utf-8'),segs=parse(c,path.basename(fp,'.md'));segs.forEach(s=>{s.mtime=st.mtimeMs;});all.push(...segs);}
+  all.sort((a,b)=>{if(a.mtime!=b.mtime)return a.mtime-b.mtime;return a.seq-b.seq;});
+  return all;}
+function slot(){
+  const n=new Date(),h=n.getHours()+n.getTimezoneOffset()/60+8,c=new Date(n);c.setHours(h,0,0,0);
+  const d=Math.floor((c.getTime()-START.getTime())/864e5);
+  if(d<0)return -1;return d*2+(h>=11?1:0);}
+async function send(title,content){
+  const body=JSON.stringify({msg_type:'interactive',card:{header:{title:{tag:'plain_text',content:title||'\u5b66\u4e60\u63a8\u9001'},template:'blue'},elements:[{tag:'markdown',content},{tag:'hr'},{tag:'note',elements:[{tag:'plain_text',content:'\u6765\u81ea\u4e2a\u4eba\u6210\u957f\u5b66\u4e60\u63a8\u9001\u7cfb\u7edf'}]}]}});
+  const r=await fetch(WH,{method:'POST',headers:{'Content-Type':'application/json'},body}),j=await r.json();return j.code===0;}
+(async()=>{
+  const segs=build();console.log('解析完成: '+segs.length+' 个段落');
+  if(!segs.length){console.log('无内容');process.exit(0);}
+  const s=slot();console.log('时槽索引: '+s);
+  if(s<0){console.log('未到开始日期');process.exit(0);}
+  const fs2=process.env.FORCE_SLOT,idx=fs2?parseInt(fs2):s;
+  if(idx>=segs.length){console.log('所有内容已推送完毕');process.exit(0);}
+  const seg=segs[idx];console.log('推送: ['+seg.title+'] '+seg.charCount+'字');
+  const ok=await send(seg.title,seg.content);
+  console.log(ok?'推送成功':'推送失败');
+  process.exit(ok?0:1);})();
