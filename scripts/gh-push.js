@@ -42,10 +42,15 @@ async function send(title,content){
   if(!segs.length){console.log('无内容');process.exit(0);}
   const s=slot();console.log('时槽索引: '+s);
   if(s<0){console.log('未到开始日期');process.exit(0);}
-  const fs2=process.env.FORCE_SLOT,idx=fs2?parseInt(fs2):s;
-  if(idx>=segs.length){console.log('所有内容已推送完毕');process.exit(0);}
-  const seg=segs[idx];console.log('推送: ['+seg.title+'] '+seg.charCount+'字');
-  const ok=await send(seg.title,seg.content);
-  console.log(ok?'推送成功':'推送失败');
-  process.exit(ok?0:1);})();
+  const fs2=process.env.FORCE_SLOT;
+  const indices=fs2?[parseInt(fs2)]:[s%2===0?s:s-1,(s%2===0?s:s-1)+1];
+  let sent=0;
+  for(const idx of indices){
+    if(idx>=segs.length)break;
+    const seg=segs[idx];console.log('推送: ['+seg.title+'] '+seg.charCount+'字');
+    const ok=await send(seg.title,seg.content);
+    if(ok)sent++;}
+  console.log('推送完成: '+sent+'条');
+  process.exit(sent>0?0:1);})();
+
 
